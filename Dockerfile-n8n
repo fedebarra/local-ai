@@ -1,0 +1,16 @@
+# Dockerfile-n8n (Alpine base)
+FROM docker.n8n.io/n8nio/n8n:beta
+
+USER root
+
+# install FFmpeg
+RUN apk update && \
+    apk add --no-cache ffmpeg
+
+# Pandoc (no PDF)
+RUN apk add --no-cache pandoc
+
+# If you need PDF output via LaTeX, add a TeX engine (large):
+# RUN apk add --no-cache texlive-full ttf-dejavu fontconfig
+
+USER node

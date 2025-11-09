@@ -1,0 +1,246 @@
+# ==============================================
+# Local AI & Automation Stack (annotated)
+# ----------------------------------------------
+# This compose file starts a small self‑hosted stack:
+# - n8n (workflow automation) + Postgres
+# - Qdrant (vector DB)
+# - Ollama (local LLMs) with optional GPU profile
+# - Gotenberg (document → PDF) with a tiny Nginx UI
+# - Kokoro TTS (text‑to‑speech)
+# - A small Pandoc UI
+#
+# Conventions used here
+# - External Docker network `local-ai` connects all services.
+# - Named volumes persist data between restarts.
+# - Healthchecks gate dependent services.
+# - Comments explain *why* each setting exists and common pitfalls.
+# ==============================================
+
+# Persistent data volumes (containers can be rebuilt; data stays)
+volumes:
+  n8n_storage:
+  postgres_storage:
+  ollama_storage:
+  qdrant_storage:
+  n8n_pandoc:
+  minio_data:
+  openwebui_storage:
+
+# --- n8n base service (YAML anchor) ---
+# Defines common settings for n8n used by both the importer and the main app.
+# Reused later via `<<: *service-n8n` to avoid duplication.
+x-n8n: &service-n8n
+  image: n8nio/n8n:beta  # n8n official image; pin a specific tag in production
+  # Optional local Dockerfile to layer extra tools (e.g., pandoc, node modules)
+  build:
+    context: .
+    dockerfile: Dockerfile-n8n
+  ports:
+    - "5678:5678"
+  # n8n configuration — keep secrets in .env (POSTGRES_* etc.)
+  environment:
+    - DB_TYPE=postgresdb  # use Postgres (not SQLite)
+    - DB_POSTGRESDB_HOST=postgres  # connect via docker network DNS
+    - DB_POSTGRESDB_USER=${POSTGRES_USER}  # from .env
+    - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}  # from .env
+    - N8N_DIAGNOSTICS_ENABLED=false  # disable telemetry
+    - N8N_PERSONALIZATION_ENABLED=false # keep UI clean/no onboarding prompts
+    - N8N_ENCRYPTION_KEY # set a stable key in production to encrypt credentials
+    - N8N_USER_MANAGEMENT_JWT_SECRET  # set for SSO/session hardening
+    - N8N_SECURE_COOKIE=false  # set true behind HTTPS
+    - N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true  # allow tool/LLM nodes from community packages
+    - N8N_PROXY_HOPS=1  # if behind reverse proxies, increase accordingly
+    - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true  # safer file perms inside container
+    - N8N_RUNNERS_ENABLED=true  # enable job runners (for heavier tasks)
+    - WEBHOOK_URL=http://localhost:5678
+    - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+    
+
+# Legacy DNS links (not required on user‑defined networks, kept for clarity)
+# (links removed as per instructions)
+
+# --- Ollama base service (YAML anchor) ---
+# Provides a local LLM server at :11434 used by apps or workflows.
+x-ollama: &service-ollama
+  image: ollama/ollama:latest
+  container_name: ollama
+  restart: unless-stopped
+  volumes:
+    - ollama_storage:/root/.ollama
+  ports:
+    - "11434:11434"
+
+# --- One‑shot helper to pre‑pull models into the shared Ollama volume ---
+x-init-ollama: &init-ollama
+  image: ollama/ollama:latest
+  container_name: ollama-pull-llama
+  volumes:
+    - ollama_storage:/root/.ollama
+  entrypoint: /bin/sh
+  command:
+    - "-c"
+    - "sleep 3; OLLAMA_HOST=127.0.0.1:11434 ollama pull gemma3:1b; OLLAMA_HOST=127.0.0.1:11434 ollama pull embeddinggemma:latest"  # wait for server, then pull models once so runtime containers start faster
+
+# =================
+# Runtime services
+# =================
+services:
+  postgres:
+    image: postgres:16-alpine  # lightweight Postgres
+    restart: unless-stopped
+    # Credentials come from your .env file
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    volumes:
+      - postgres_storage:/var/lib/postgresql/data  # persist database files
+    ports:
+      - "5432:5432"
+    # Gate dependents until Postgres is ready
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  n8n-import:
+    <<: *service-n8n
+    container_name: n8n-import
+    # One‑time import of credentials/workflows from ./n8n/backup (idempotent)
+    entrypoint: /bin/sh
+    command:
+      - "-c"
+      - "n8n import:credentials --separate --input=/backup/credentials && n8n import:workflow --separate --input=/backup/workflows"
+    volumes:
+      - ./n8n/backup:/backup
+    # Wait for Postgres, then run import before main n8n starts
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  n8n:
+    <<: *service-n8n
+    container_name: n8n
+    restart: unless-stopped
+    # Persist n8n data and mount shared assets
+    volumes:
+      - n8n_storage:/home/node/.n8n
+      - ./n8n/backup:/backup
+      - ./shared:/data/shared
+      - n8n_pandoc:/pandoc  # share pandoc binaries/cache with n8n if needed
+      - ./files/inbox:/data/inbox:rw
+      - ./files/outbox:/data/outbox:rw
+    # Start order and health‑gating
+    depends_on:
+      postgres:
+        condition: service_healthy
+      n8n-import:
+        condition: service_completed_successfully
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_storage:/qdrant/storage  # persist vector collections
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+
+  # Profile‑gated service: choose CPU or NVIDIA GPU profile at compose up
+  ollama-cpu:
+    profiles: ["cpu"]
+    <<: *service-ollama
+
+  # Profile‑gated service: choose CPU or NVIDIA GPU profile at compose up
+  ollama-gpu:
+    profiles: ["gpu-nvidia"]
+    <<: *service-ollama
+    # Request a GPU from the Docker runtime (NVIDIA Container Toolkit required)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  ollama-pull-llama-cpu:
+    profiles: ["cpu"]
+    <<: *init-ollama
+    # Ensure pulls happen after the corresponding Ollama service is up
+    depends_on:
+      - ollama-cpu
+
+  ollama-pull-llama-gpu:
+    profiles: ["gpu-nvidia"]
+    <<: *init-ollama
+    # Ensure pulls happen after the corresponding Ollama service is up
+    depends_on:
+      - ollama-gpu
+
+  gotenberg:
+    image: gotenberg/gotenberg:latest  # document → PDF microservice
+    container_name: gotenberg
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]  # internal health endpoint (container port 3000)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "3000:3000"
+  
+  
+  kokoro-fastapi-cpu:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    container_name: kokoro-tts
+    # Auto‑restart on failure
+    restart: unless-stopped
+    ports:
+      - "8880:8880"
+  
+  
+  
+  pandoc-ui:
+    build: ./pandoc-ui
+    container_name: pandoc-ui
+    restart: unless-stopped  # keep it running
+    ports:
+      - "8081:8080"
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: user
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    volumes:
+      - openwebui_storage:/app/backend/data
+    restart: unless-stopped
+    ports:
+      - "3001:8080"
+
+  whisper:
+    image: fedirz/faster-whisper-server:latest-cpu
+    container_name: whisper
+    volumes:
+    - ./whisper/models:/root/.cache/huggingface
+    - ./files/inbox:/inbox
+    environment:
+    - WHISPER_MODEL=small.en  # or tiny.en, small.en, medium.en, large-v3
+    restart: unless-stopped
+    ports:
+      - "8020:8000"
