@@ -1,150 +1,196 @@
 # Local AI 🚀
 
-This project helps you run several useful tools on your own computer using Docker. These tools work together to help you manage data, use AI models locally, create text-to-speech audio, convert documents, and more.
+This project lets you run powerful AI tools **directly on your computer** — with **full privacy** and **no cloud access required**. Everything runs using **Docker**, and services talk to each other so you can build AI workflows, run local language models, use text-to-speech, speech-to-text, convert files, and more.
 
 ---
 
 ## What is this project? 🤖🛠️
 
-This project sets up a group of services on your computer using Docker. Each service does something helpful:
+You get a complete local AI platform:
 
-- **n8n 🤝**: A tool to connect different apps and automate tasks without coding.
-- **Baserow 🗂️**: A simple online database where you can store and organize your data.
-- **Qdrant 🔍**: A fast system to search and find information based on meaning, useful for AI.
-- **Ollama 🧠**: A platform to run large language AI models right on your computer.
-- **Kokoro TTS 🗣️**: Turns text into spoken audio (text-to-speech).
-- **Gotenberg 📄**: Converts files to PDF format.
-- **Pandoc UI 📚**: Converts documents from one format to another with a simple interface.
-- **PostgreSQL 🛢️**: A powerful database system that stores all your data safely.
+| Service | Purpose | URL |
+|--------|--------|------|
+**n8n** 🤝 | Automate tasks, build AI workflows | http://localhost:5678 |
+**Qdrant** 🔍 | Vector search for RAG and memory | http://localhost:6333/dashboard |
+**Ollama** 🧠 | Run open-source AI models locally (Gemma, Llama, etc.) | *CLI & API only* |
+**Kokoro TTS** 🗣️ | Text → Speech | http://localhost:8880/web (/docs for info) |
+**Whisper** 🎤 | Speech → Text | http://localhost:8020 (/docs for info)|
+**Gotenberg** 📄 | Convert files → PDF | *API service only* |
+**Pandoc UI** 📚 | Convert documents easily | http://localhost:8081 |
+**MinIO** 📦 | Object storage (S3‑compatible) | http://localhost:9001 |
+**PostgreSQL** 🛢️ | Database for n8n | *Internal service* |
 
-All these services run together and can talk to each other, making it easier to build AI applications and manage your data locally.
-
----
-
-## What you need before starting 📝
-
-1. **Docker**: Software that lets you run applications inside containers on your computer.
-2. **Docker Compose**: A tool to start and manage multiple Docker containers at once.
-
-If you don’t have these installed, here are simple guides:
-
-- [Install Docker](https://docs.docker.com/get-docker/)
-- Docker Compose is included with Docker Desktop on Windows and Mac. For Linux, follow [this guide](https://docs.docker.com/compose/install/).
+All data stays **local and private** ✅
 
 ---
 
-## Installation 🛠️
+## Requirements ✅
 
-### Windows 💻
+Install these first:
 
-1. Download and install **Docker Desktop** from [https://docs.docker.com/docker-for-windows/install/](https://docs.docker.com/docker-for-windows/install/).
-2. Install **Git** from [https://git-scm.com/download/win](https://git-scm.com/download/win).
-3. Open **PowerShell** or **Command Prompt**.
-4. Run the following commands to download and start the project:
+### 🐳 Docker Desktop
+Runs all services in containers  
+https://www.docker.com/products/docker-desktop/
 
-   ```
-   git clone https://github.com/n8n-io/local-ai.git
-   cd local-ai
-   docker compose up -d
-   ```
+> Windows: enable **WSL2** during install and pick Ubuntu.
 
-### Mac 🍏
+### 🧠 Ollama
+Runs AI models locally  
+https://ollama.com/download
 
-1. Download and install **Docker Desktop** from [https://docs.docker.com/docker-for-mac/install/](https://docs.docker.com/docker-for-mac/install/).
-2. Install **Git** via Homebrew (`brew install git`) or from [https://git-scm.com/download/mac](https://git-scm.com/download/mac).
-3. Open **Terminal**.
-4. Run the following commands to download and start the project:
+After install, pull a starter model:
 
-   ```
-   git clone https://github.com/n8n-io/local-ai.git
-   cd local-ai
-   docker compose up -d
-   ```
-
-### Server 🖥️ (Linux)
-
-1. Install **Docker** by following the instructions at [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/).
-2. Install **Docker Compose** by following [https://docs.docker.com/compose/install/](https://docs.docker.com/compose/install/).
-3. Install **Git** using your package manager, e.g., `sudo apt install git`.
-4. Open your terminal.
-5. Run the following commands to download and start the project:
-
-   ```
-   git clone https://github.com/n8n-io/local-ai.git
-   cd local-ai
-   docker compose up -d
-   ```
-
----
-
-## How to download this project 🗂️
-
-1. Open a terminal or command prompt on your computer.
-2. Type this command to download the project files from GitHub:
-
-   ```
-   git clone https://github.com/n8n-io/local-ai.git
-   ```
-
-3. Change into the project folder:
-
-   ```
-   cd local-ai
-   ```
-
-If you don’t have Git installed, you can download the project as a ZIP file from the GitHub page and unzip it.
-
----
-
-## How to start all services ▶️
-
-1. In the terminal, make sure you are inside the `local-ai` folder.
-2. Run this command to start all the services in the background:
-
-   ```
-   docker compose up -d
-   ```
-
-3. Docker will download all needed images and start the services. This might take some time the first time.
-
----
-
-## How to open each service in your web browser 🌐
-
-Once all services are running, you can open their web pages by typing these addresses in your browser:
-
-- **n8n 🤝 (Automation tool)**: [http://localhost:5678](http://localhost:5678)
-- **Baserow 🗂️ (Database)**: [http://baserow:8080](http://baserow:8080)
-- **Qdrant 🔍 (Vector search)**: [http://localhost:6333](http://localhost:6333)
-- **Ollama 🧠 (Local AI models)**: No web interface; used by n8n internally.
-- **Kokoro TTS 🗣️ (Text-to-Speech)**: [http://localhost:50021](http://localhost:50021)
-- **Gotenberg 📄 (PDF converter)**: No web interface; used by other services.
-- **Pandoc UI 📚 (Document converter)**: [http://localhost:3001](http://localhost:3001)
-- **PostgreSQL 🛢️ (Database)**: No web interface; accessed by other services.
-
----
-
-## How to stop all services ⏹️
-
-To stop everything, run this command in the project folder:
-
+```bash
+ollama pull gemma3:1b
 ```
+
+> Smaller models = faster and work on more machines.
+
+### 📝 Visual Studio Code
+To open and edit this project  
+https://code.visualstudio.com/
+
+---
+
+## Download the project
+
+### Git method (recommended)
+
+```bash
+git clone https://github.com/fedebarra/local-ai.git
+cd local-ai
+```
+
+### ZIP method
+- Go to https://github.com/fedebarra/local-ai
+- Click **Code → Download ZIP**
+- Unzip and open in VS Code
+
+> Windows users: Better performance if stored in WSL:  
+`\\wsl$\Ubuntu\home\<you>\local-ai`
+
+---
+
+## ⚙️ Environment Variables (.env)
+
+This folder already includes a `.env` file.
+
+✅ Default values included  
+❗ **You MUST open it and change the credentials before running**
+
+Open it in VS Code and edit:
+
+```env
+# --- Postgres Credentials ---
+POSTGRES_USER=root             # Change to your username
+POSTGRES_PASSWORD=password     # Change to a strong password
+POSTGRES_DB=n8n                # Leave as is
+
+# --- Cloudflare Tunnel (optional for remote access) ---
+TUNNEL_TOKEN= [paste token here]
+
+# --- OpenAI / Ollama ---
+OPENAI_API_KEY= [optional, only if using cloud models]
+OPENAI_BASE_URL=https://api.openai.com/v1
+MODEL_NAME=gpt-4o-mini
+MODEL_EMBEDDING_NAME=text-embedding-3-small
+
+# Ollama (local models)
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_HOST=host.docker.internal/11434
+MODEL_OLLAMA_NAME=gemma3:1b
+MODEL_OLLAMA_EMBEDDING_NAME=embeddinggemma:latest
+
+# --- n8n ---
+N8N_ENCRYPTION_KEY=your-very-strong-key
+N8N_USER_MANAGEMENT_JWT_SECRET=another-strong-secret
+N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
+WEBHOOK_URL=http://localhost:5678
+```
+
+### ✅ Required changes
+
+| Variable | Action |
+|---|---|
+`POSTGRES_PASSWORD` | Change to your password |
+`N8N_ENCRYPTION_KEY` | Replace with long random string |
+`N8N_USER_MANAGEMENT_JWT_SECRET` | Replace with long random string |
+
+---
+
+## Start everything ▶️
+
+Open Terminal / PowerShell in project folder:
+
+### CPU mode (recommended for beginners)
+
+```bash
+docker compose --profile cpu up -d
+```
+
+### GPU mode (only if you have NVIDIA / Apple GPU support)
+
+```bash
+docker compose --profile gpu-nvidia up -d
+```
+
+---
+
+## Access your tools 🌐
+
+| Service | URL |
+|---|---|
+n8n | http://localhost:5678 |
+Qdrant Dashboard | http://localhost:6333/dashboard |
+Pandoc UI | http://localhost:8081 |
+MinIO Console | http://localhost:9001 |
+Kokoro TTS | http://localhost:8880/web |
+Whisper API docs | http://localhost:8020 |
+
+> First launch may take 20–60 seconds — refresh if needed.
+
+---
+
+## Stop the system ⏹️
+
+```bash
 docker compose down
 ```
 
-This will stop and remove the running containers but keep your data.
+Keep your data ✅
+
+To erase everything ⚠️
+
+```bash
+docker compose down -v
+```
 
 ---
 
-## Troubleshooting 📝
+## Troubleshooting 🧯
 
-- **Ports already in use**: If you get an error that a port is busy, another program might be using it. You can:
-  - Close the program using that port.
-  - Change the port number in the `docker-compose.yml` file before starting.
-- **Slow downloads**: The first time you run `docker compose up -d`, Docker downloads large files. This can take a while depending on your internet speed. Please be patient.
-- **Docker not found**: Make sure Docker is installed and running before starting.
-- **Git not found**: If `git clone` doesn’t work, install Git or download the ZIP from GitHub manually.
+| Problem | Fix |
+|---|---|
+Docker not running | Open Docker Desktop |
+Ollama not found | Restart terminal & reinstall |
+Ports busy | Stop apps or edit ports in compose |
+Windows errors | Move folder to WSL home directory |
+Slow models | Use `gemma3:1b` |
 
 ---
 
-If you follow these steps, you will have a powerful local setup with AI and productivity tools ready to use!
+## You're ready! 🎉
+
+You now run:
+
+- Offline AI chat  
+- Workflow automation  
+- Local speech AI  
+- Private vector search  
+- Local storage  
+- Document pipelines  
+
+Fully **local, private, and extensible**.
+
+Want ready‑to‑run example workflows?  
+Just ask 🚀
