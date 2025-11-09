@@ -192,5 +192,4 @@ You now run:
 
 Fully **local, private, and extensible**.
 
-Want ready‑to‑run example workflows?  
-Just ask 🚀
+
