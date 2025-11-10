@@ -16,7 +16,6 @@ You get a complete local AI platform:
 **Kokoro TTS** 🗣️ | Text → Speech | http://localhost:8880/web (/docs for info) |
 **Whisper** 🎤 | Speech → Text | http://localhost:8020 (/docs for info)|
 **Gotenberg** 📄 | Convert files → PDF | *API service only* |
-**Pandoc UI** 📚 | Convert documents easily | http://localhost:8081 |
 **MinIO** 📦 | Object storage (S3‑compatible) | http://localhost:9001 |
 **PostgreSQL** 🛢️ | Database for n8n | *Internal service* |
 
