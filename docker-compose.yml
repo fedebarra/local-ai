@@ -7,7 +7,6 @@
 # - Ollama (local LLMs) with optional GPU profile
 # - Gotenberg (document → PDF) with a tiny Nginx UI
 # - Kokoro TTS (text‑to‑speech)
-# - A small Pandoc UI
 #
 # Conventions used here
 # - External Docker network `local-ai` connects all services.
